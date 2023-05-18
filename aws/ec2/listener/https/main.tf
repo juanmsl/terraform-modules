@@ -2,6 +2,10 @@ variable "load_balancer_arn" {}
 variable "ssl_policy" {}
 variable "certificate_arn" {}
 variable "target_group_arn" {}
+variable "extra_certificates_arns" {
+  type    = list
+  default = []
+}
 
 resource "aws_lb_listener" "listener" {
   load_balancer_arn = var.load_balancer_arn
@@ -14,6 +18,12 @@ resource "aws_lb_listener" "listener" {
     target_group_arn = var.target_group_arn
     type             = "forward"
   }
+}
+
+resource "aws_lb_listener_certificate" "extra_certificates" {
+  for_each        = toset(var.extra_certificates_arns)
+  listener_arn    = aws_lb_listener.listener.arn
+  certificate_arn = each.value
 }
 
 output "id" {

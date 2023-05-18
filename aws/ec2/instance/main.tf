@@ -5,7 +5,7 @@ variable "ami" {}
 variable "key_name" {}
 variable "security_group_ids" {}
 variable "subnet_id" {}
-variable "iam_instance_profile" {}
+variable "iam_role_name" {}
 variable "monitoring" {
   default = true
 }
@@ -13,10 +13,10 @@ variable "instance_type" {
   default = "t2.micro"
 }
 variable "private_ip" {
-  default = ""
+  default = null
 }
 variable "secondary_private_ips" {
-  type    = "list"
+  type    = list(any)
   default = []
 }
 variable "associate_public_ip_address" {
@@ -29,7 +29,7 @@ variable "user_data" {
   default = ""
 }
 variable "root_block_device" {
-  type    = "map"
+  type    = map(any)
   default = {}
   # {
   #   volume_type = "gp2"
@@ -41,13 +41,18 @@ variable "root_block_device" {
 locals {
   name              = join("-", [var.project, var.environment, var.role])
   root_block_device = var.root_block_device == {} ? [] : [var.root_block_device]
-  tags              = {
+  tags = {
     Name        = local.name
     Project     = var.project
     Environment = var.environment
     Role        = var.role
     AWSService  = "ec2"
   }
+}
+
+resource "aws_iam_instance_profile" "instance_profile" {
+  name_prefix = local.name
+  role        = var.iam_role_name
 }
 
 resource "aws_instance" "instance" {
@@ -62,7 +67,7 @@ resource "aws_instance" "instance" {
   associate_public_ip_address = var.associate_public_ip_address
   source_dest_check           = var.source_dest_check
   user_data                   = var.user_data
-  iam_instance_profile        = var.iam_instance_profile
+  iam_instance_profile        = aws_iam_instance_profile.instance_profile.name
   monitoring                  = var.monitoring
   disable_api_termination     = true
 

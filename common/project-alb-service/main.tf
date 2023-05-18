@@ -15,14 +15,18 @@ variable "load_balancer_container_name" {}
 variable "health_check_path" {}
 variable "certificate_arn" {}
 variable "task_definition_arn" {}
+variable "extra_certificates_arns" {
+  type    = list
+  default = []
+}
 variable "ssl_policy" {
   default = "ELBSecurityPolicy-2016-08"
 }
 variable "public_subnets" {
-  type = list
+  type = list(any)
 }
 variable "private_subnets" {
-  type = list
+  type = list(any)
 }
 variable "platform_version" {
   default = "LATEST"
@@ -50,18 +54,18 @@ module "service" {
 }
 
 module "security_group_service" {
-  source                = "../../aws/vpc/security-group"
-  project               = var.project
-  environment           = var.environment
-  role                  = "service-${local.role}"
-  vpc_id                = var.vpc_id
+  source      = "../../aws/vpc/security-group"
+  project     = var.project
+  environment = var.environment
+  role        = "service-${local.role}"
+  vpc_id      = var.vpc_id
   rules_security_groups = {
     "tcp,ingress,0,65535" = var.ecs_security_group_id
   }
   rules = {
-    "tcp,ingress,${var.container_port},${var.container_port}"   = var.private ? [var.vpc_cidr] : ["0.0.0.0/0"]
-    "-1,ingress,2049,2049" = ["0.0.0.0/0"]
-    "-1,egress,0,0" = ["0.0.0.0/0"]
+    "tcp,ingress,${var.container_port},${var.container_port}" = var.private ? [var.vpc_cidr] : ["0.0.0.0/0"]
+    "-1,ingress,2049,2049"                                    = ["0.0.0.0/0"]
+    "-1,egress,0,0"                                           = ["0.0.0.0/0"]
   }
 }
 
@@ -81,7 +85,7 @@ module "security_group_load_balancer" {
   environment = var.environment
   role        = "alb-${local.role}"
   vpc_id      = var.vpc_id
-  rules       = {
+  rules = {
     "tcp,ingress,80,80"   = var.private ? [var.vpc_cidr] : ["0.0.0.0/0"]
     "tcp,ingress,443,443" = var.private ? [var.vpc_cidr] : ["0.0.0.0/0"]
     "-1,egress,0,0"       = ["0.0.0.0/0"]
@@ -89,12 +93,12 @@ module "security_group_load_balancer" {
 }
 
 module "target_group" {
-  source       = "../../aws/ec2/alb/target-group"
-  project      = var.project
-  role         = "alb-${local.role}"
-  environment  = var.environment
-  vpc_id       = var.vpc_id
-  port         = var.container_port
+  source      = "../../aws/ec2/alb/target-group"
+  project     = var.project
+  role        = "alb-${local.role}"
+  environment = var.environment
+  vpc_id      = var.vpc_id
+  port        = var.container_port
   health_check = {
     path = var.health_check_path
   }
@@ -106,11 +110,12 @@ module "listener_http" {
 }
 
 module "listener_https" {
-  source            = "../../aws/ec2/listener/https"
-  load_balancer_arn = module.load-balancer.arn
-  ssl_policy        = var.ssl_policy
-  certificate_arn   = var.certificate_arn
-  target_group_arn  = module.target_group.arn
+  source                  = "../../aws/ec2/listener/https"
+  load_balancer_arn       = module.load-balancer.arn
+  ssl_policy              = var.ssl_policy
+  certificate_arn         = var.certificate_arn
+  target_group_arn        = module.target_group.arn
+  extra_certificates_arns = var.extra_certificates_arns
 }
 
 output "role" {
@@ -119,6 +124,10 @@ output "role" {
 
 output "load_balancer_dns_name" {
   value = module.load-balancer.dns_name
+}
+
+output "load_balancer_zone_id" {
+  value = module.load-balancer.zone_id
 }
 
 output "service_security_group_id" {
