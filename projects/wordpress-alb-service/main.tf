@@ -13,6 +13,10 @@ variable "public_subnets" {}
 variable "vpc_cidr" {}
 variable "vpc_default_security_group_id" {}
 variable "vpc_id" {}
+variable "extra_certificates_arns" {
+  type    = list
+  default = []
+}
 variable "container_port" {
   default = 80
 }
@@ -97,6 +101,7 @@ module "service" {
   vpc_id                       = var.vpc_id
   platform_version             = "1.4.0"
   task_definition_arn          = module.task_definition.arn
+  extra_certificates_arns      = var.extra_certificates_arns
 }
 
 module "auto_scaling" {
@@ -107,4 +112,8 @@ module "auto_scaling" {
 
 output "load_balancer_dns_name" {
   value = module.service.load_balancer_dns_name
+}
+
+output "load_balancer_zone_id" {
+  value = module.service.load_balancer_zone_id
 }
